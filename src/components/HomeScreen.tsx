@@ -550,7 +550,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </button>
       </nav>
 
-      {/* 6. DOCKED 320x50 GOOGLE ADMOB BOTTOM BANNER SLOT (8896965666) */}
+      {/* 6. DOCKED 320x50 GOOGLE ADMOB BOTTOM BANNER SLOT (TEST AD: 6300978111) */}
       <div
         aria-label="Lobby Bottom Banner Ad Slot"
         data-admob-app-id={ADMOB_CONFIG.APP_ID}
@@ -560,14 +560,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <div className="w-[320px] h-[44px] max-w-full rounded-xl bg-black/85 border border-amber-500/35 px-3 flex items-center justify-between gap-2 shadow-inner">
           <div className="flex items-center gap-2 min-w-0">
             <span className="px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-400/50 text-[8px] font-mono-num font-black text-[#ffe082] uppercase tracking-wider shrink-0">
-              AD
+              TEST AD
             </span>
             <div className="min-w-0">
               <p className="text-[10px] font-display font-bold text-[#fef9e7] truncate">
-                Alphabet Royale 3D • VIP High-Roller Club
+                Google AdMob Test Banner • 320x50
               </p>
               <p className="text-[8px] font-mono-num text-emerald-300/90 truncate">
-                Watch Rewarded Video for Free +500 Gold Coins
+                {ADMOB_CONFIG.BANNER_AD_UNIT}
               </p>
             </div>
           </div>

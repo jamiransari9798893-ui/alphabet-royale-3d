@@ -222,6 +222,18 @@ export default function App() {
         : 'playing';
   }, [screenPhase]);
 
+  // Page Visibility API: Globally mute/pause all game audio when document.hidden is true,
+  // and unmute/resume only when the app returns to the foreground
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      sound.syncVisibilityState();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, []);
+
   // Tick 1-second cooldown timers for 4-Hour Ad Cooldown, Hourly Vault & 24-Hour Spin Limit
   useEffect(() => {
     const interval = setInterval(() => {

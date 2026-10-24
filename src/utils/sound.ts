@@ -3,8 +3,12 @@
 
 class RoyalSoundEngine {
   private ctx: AudioContext | null = null;
+  private masterGain: GainNode | null = null;
   public muted: boolean = false;
+  private backgroundMuted: boolean =
+    typeof document !== 'undefined' ? Boolean(document.hidden) : false;
   private unlocked: boolean = false;
+  private pendingTimeouts: Set<number> = new Set();
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -15,10 +19,113 @@ class RoyalSoundEngine {
       window.addEventListener('touchstart', unlockHandler, { passive: true });
       window.addEventListener('click', unlockHandler, { passive: true });
       window.addEventListener('keydown', unlockHandler, { passive: true });
+
+      if (typeof document !== 'undefined') {
+        document.addEventListener('visibilitychange', this.handleVisibilityChange);
+      }
+      window.addEventListener('pagehide', () => this.setBackgroundHidden(true));
+      window.addEventListener('pageshow', () => {
+        this.setBackgroundHidden(typeof document !== 'undefined' ? Boolean(document.hidden) : false);
+      });
+    }
+  }
+
+  private clearPendingTimeouts(): void {
+    this.pendingTimeouts.forEach((id) => {
+      clearTimeout(id);
+    });
+    this.pendingTimeouts.clear();
+  }
+
+  private scheduleTimeout(fn: () => void, delayMs: number): void {
+    if (typeof window === 'undefined') return;
+    const id = window.setTimeout(() => {
+      this.pendingTimeouts.delete(id);
+      if (!this.isAudioSuppressed()) {
+        fn();
+      }
+    }, delayMs);
+    this.pendingTimeouts.add(id);
+  }
+
+  public isAudioSuppressed(): boolean {
+    const isDocHidden = typeof document !== 'undefined' && Boolean(document.hidden);
+    return this.muted || this.backgroundMuted || isDocHidden;
+  }
+
+  public handleVisibilityChange = (): void => {
+    if (typeof document === 'undefined') return;
+    this.setBackgroundHidden(Boolean(document.hidden));
+  };
+
+  public syncVisibilityState(): void {
+    if (typeof document === 'undefined') return;
+    this.setBackgroundHidden(Boolean(document.hidden));
+  }
+
+  private setBackgroundHidden(hidden: boolean): void {
+    this.backgroundMuted = hidden;
+
+    if (hidden) {
+      // Immediately cancel any scheduled multi-part sound effects (shuffles, fanfares)
+      this.clearPendingTimeouts();
+
+      // Silence master gain node and suspend Web Audio context
+      if (this.ctx && this.masterGain) {
+        try {
+          this.masterGain.gain.cancelScheduledValues(this.ctx.currentTime);
+          this.masterGain.gain.setValueAtTime(0, this.ctx.currentTime);
+        } catch {
+          // Ignore context timing errors
+        }
+      }
+      if (this.ctx && this.ctx.state === 'running') {
+        this.ctx.suspend().catch(() => {});
+      }
+
+      // Pause and mute any HTML5 <audio> or <video> elements if present
+      if (typeof document !== 'undefined') {
+        document.querySelectorAll('audio, video').forEach((el) => {
+          const media = el as HTMLMediaElement;
+          if (!media.paused) {
+            media.dataset.pausedByVisibility = 'true';
+            media.pause();
+          }
+          media.muted = true;
+        });
+      }
+    } else {
+      // App returned to foreground: only unmute/resume if user hasn't manually muted
+      if (!this.muted) {
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume().catch(() => {});
+        }
+        if (this.ctx && this.masterGain) {
+          try {
+            this.masterGain.gain.cancelScheduledValues(this.ctx.currentTime);
+            this.masterGain.gain.setValueAtTime(1, this.ctx.currentTime);
+          } catch {
+            // Ignore context timing errors
+          }
+        }
+        if (typeof document !== 'undefined') {
+          document.querySelectorAll('audio, video').forEach((el) => {
+            const media = el as HTMLMediaElement;
+            media.muted = false;
+            if (media.dataset.pausedByVisibility === 'true') {
+              delete media.dataset.pausedByVisibility;
+              media.play().catch(() => {});
+            }
+          });
+        }
+      }
     }
   }
 
   public unlockAudio(): void {
+    if (typeof document !== 'undefined' && document.hidden) {
+      return;
+    }
     try {
       if (!this.ctx && typeof window !== 'undefined') {
         const AudioCtx =
@@ -26,17 +133,20 @@ class RoyalSoundEngine {
           (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
         if (AudioCtx) {
           this.ctx = new AudioCtx();
+          this.masterGain = this.ctx.createGain();
+          this.masterGain.gain.value = this.isAudioSuppressed() ? 0 : 1;
+          this.masterGain.connect(this.ctx.destination);
         }
       }
-      if (this.ctx && this.ctx.state === 'suspended') {
+      if (this.ctx && this.ctx.state === 'suspended' && !this.isAudioSuppressed()) {
         this.ctx.resume().catch(() => {});
       }
-      if (this.ctx && !this.unlocked) {
+      if (this.ctx && !this.unlocked && !this.isAudioSuppressed()) {
         // Play a silent 1-sample buffer to unlock iOS/Android mobile Web Audio
         const buffer = this.ctx.createBuffer(1, 1, 22050);
         const source = this.ctx.createBufferSource();
         source.buffer = buffer;
-        source.connect(this.ctx.destination);
+        source.connect(this.getDestination(this.ctx));
         source.start(0);
         this.unlocked = true;
       }
@@ -45,14 +155,29 @@ class RoyalSoundEngine {
     }
   }
 
+  private getDestination(ctx: AudioContext): AudioNode {
+    if (!this.masterGain) {
+      this.masterGain = ctx.createGain();
+      this.masterGain.gain.value = this.isAudioSuppressed() ? 0 : 1;
+      this.masterGain.connect(ctx.destination);
+    }
+    return this.masterGain;
+  }
+
   private getContext(): AudioContext | null {
-    if (this.muted || typeof window === 'undefined') return null;
+    if (this.isAudioSuppressed() || typeof window === 'undefined') return null;
     try {
       if (!this.ctx) {
         this.unlockAudio();
       }
-      if (this.ctx && this.ctx.state === 'suspended') {
+      if (!this.ctx || this.isAudioSuppressed()) {
+        return null;
+      }
+      if (this.ctx.state === 'suspended') {
         this.ctx.resume().catch(() => {});
+      }
+      if (this.masterGain) {
+        this.masterGain.gain.setValueAtTime(1, this.ctx.currentTime);
       }
       return this.ctx;
     } catch {
@@ -64,6 +189,7 @@ class RoyalSoundEngine {
   public playClick(pitchShift = 1.0): void {
     const ctx = this.getContext();
     if (!ctx) return;
+    const dest = this.getDestination(ctx);
     const now = ctx.currentTime;
 
     const osc = ctx.createOscillator();
@@ -76,7 +202,7 @@ class RoyalSoundEngine {
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(dest);
     osc.start(now);
     osc.stop(now + 0.055);
   }
@@ -85,6 +211,7 @@ class RoyalSoundEngine {
   public playCardSlide(): void {
     const ctx = this.getContext();
     if (!ctx) return;
+    const dest = this.getDestination(ctx);
     const now = ctx.currentTime;
 
     const bufferSize = Math.floor(ctx.sampleRate * 0.095);
@@ -109,7 +236,7 @@ class RoyalSoundEngine {
 
     noise.connect(filter);
     filter.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(dest);
     noise.start(now);
   }
 
@@ -121,6 +248,7 @@ class RoyalSoundEngine {
   public playCardSlap(): void {
     const ctx = this.getContext();
     if (!ctx) return;
+    const dest = this.getDestination(ctx);
     const now = ctx.currentTime;
 
     // 1. Crisp paper whoosh
@@ -138,7 +266,7 @@ class RoyalSoundEngine {
     thudGain.gain.exponentialRampToValueAtTime(0.001, slapTime + 0.115);
 
     thudOsc.connect(thudGain);
-    thudGain.connect(ctx.destination);
+    thudGain.connect(dest);
     thudOsc.start(slapTime);
     thudOsc.stop(slapTime + 0.12);
 
@@ -162,7 +290,7 @@ class RoyalSoundEngine {
 
     slapNoise.connect(hpFilter);
     hpFilter.connect(slapGain);
-    slapGain.connect(ctx.destination);
+    slapGain.connect(dest);
     slapNoise.start(slapTime);
   }
 
@@ -171,11 +299,11 @@ class RoyalSoundEngine {
     const ctx = this.getContext();
     if (!ctx) return;
     for (let i = 0; i < 16; i++) {
-      setTimeout(() => {
+      this.scheduleTimeout(() => {
         this.playCardSlide();
       }, i * 32);
     }
-    setTimeout(() => {
+    this.scheduleTimeout(() => {
       this.playCardSlap();
     }, 520);
   }
@@ -184,6 +312,7 @@ class RoyalSoundEngine {
   public playChatPing(): void {
     const ctx = this.getContext();
     if (!ctx) return;
+    const dest = this.getDestination(ctx);
     const now = ctx.currentTime;
 
     const notes = [880, 1318.5]; // A5 -> E6
@@ -196,7 +325,7 @@ class RoyalSoundEngine {
       gain.gain.setValueAtTime(0.28, start);
       gain.gain.exponentialRampToValueAtTime(0.001, start + 0.16);
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(dest);
       osc.start(start);
       osc.stop(start + 0.17);
     });
@@ -206,6 +335,7 @@ class RoyalSoundEngine {
   public playWheelTick(pitchMultiplier = 1.0): void {
     const ctx = this.getContext();
     if (!ctx) return;
+    const dest = this.getDestination(ctx);
     const now = ctx.currentTime;
 
     const osc = ctx.createOscillator();
@@ -218,7 +348,7 @@ class RoyalSoundEngine {
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.034);
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(dest);
     osc.start(now);
     osc.stop(now + 0.036);
   }
@@ -227,6 +357,7 @@ class RoyalSoundEngine {
   public playCoinChime(count = 6): void {
     const ctx = this.getContext();
     if (!ctx) return;
+    const dest = this.getDestination(ctx);
     const notes = [1567.98, 1975.53, 2349.32, 2637.02, 3135.96, 3520.0]; // G6..A7
     for (let i = 0; i < count; i++) {
       const startOffset = i * 0.06;
@@ -248,7 +379,7 @@ class RoyalSoundEngine {
 
       osc.connect(gain);
       harmonic.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(dest);
 
       osc.start(now);
       harmonic.start(now);
@@ -261,6 +392,7 @@ class RoyalSoundEngine {
   public playWinFanfare(): void {
     const ctx = this.getContext();
     if (!ctx) return;
+    const dest = this.getDestination(ctx);
     // Royal Trumpet Brass Fanfare notes (C5, E5, G5, C6, G5, C6)
     const fanfare = [
       { freq: 523.25, delay: 0.0, dur: 0.14 },
@@ -293,7 +425,7 @@ class RoyalSoundEngine {
       osc1.connect(filter);
       osc2.connect(filter);
       filter.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(dest);
 
       osc1.start(start);
       osc2.start(start);
@@ -301,13 +433,14 @@ class RoyalSoundEngine {
       osc2.stop(start + dur + 0.02);
     });
 
-    setTimeout(() => this.playCoinChime(10), 250);
+    this.scheduleTimeout(() => this.playCoinChime(10), 250);
   }
 
   /** Subtle defeat chord */
   public playLoseSting(): void {
     const ctx = this.getContext();
     if (!ctx) return;
+    const dest = this.getDestination(ctx);
     const notes = [392.0, 349.23, 311.13, 261.63];
     notes.forEach((freq, idx) => {
       const now = ctx.currentTime + idx * 0.1;
@@ -320,7 +453,7 @@ class RoyalSoundEngine {
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
 
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(dest);
       osc.start(now);
       osc.stop(now + 0.36);
     });
@@ -328,3 +461,4 @@ class RoyalSoundEngine {
 }
 
 export const sound = new RoyalSoundEngine();
+

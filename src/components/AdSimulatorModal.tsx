@@ -113,8 +113,8 @@ export const AdSimulatorModal: React.FC<AdSimulatorModalProps> = ({
           </div>
           <p className="text-[10px] font-mono-num text-amber-200/80">
             {mode === 'interstitial'
-              ? `Sponsored Interstitial • ${progressPct}%`
-              : `Reward Progress: ${progressPct}% • Daily Bonus (${5 - adsRemainingBeforeWatch}/4)`}
+              ? `Google Test Interstitial (${adUnitId}) • ${progressPct}%`
+              : `Google Test Rewarded (${adUnitId}) • ${progressPct}%`}
           </p>
         </div>
 

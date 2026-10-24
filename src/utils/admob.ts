@@ -1,8 +1,9 @@
 export const ADMOB_CONFIG = {
-  APP_ID: 'ca-app-pub-4220750286370813~3760189051',
-  BANNER_AD_UNIT: 'ca-app-pub-4220750286370813/8896965666',
-  INTERSTITIAL_AD_UNIT: 'ca-app-pub-4220750286370813/4678344042',
-  REWARDED_AD_UNIT: 'ca-app-pub-4220750286370813/6957023022',
+  APP_ID: 'ca-app-pub-3940256099942544~3347511713',
+  BANNER_AD_UNIT: 'ca-app-pub-3940256099942544/6300978111',
+  INTERSTITIAL_AD_UNIT: 'ca-app-pub-3940256099942544/1033173712',
+  REWARDED_AD_UNIT: 'ca-app-pub-3940256099942544/5224354917',
+  IS_TEST_MODE: true,
 } as const;
 
 export const INDIAN_OPPONENT_PROFILES = [
@@ -54,17 +55,17 @@ export function initNativeBannerAd(): boolean {
       if (typeof bridge.banner.config === 'function') {
         bridge.banner.config({
           id: ADMOB_CONFIG.BANNER_AD_UNIT,
-          isTesting: false,
+          isTesting: true,
           autoShow: true,
         });
         bridge.banner.prepare?.();
       } else if (typeof bridge.banner.show === 'function') {
-        bridge.banner.show({ id: ADMOB_CONFIG.BANNER_AD_UNIT });
+        bridge.banner.show({ id: ADMOB_CONFIG.BANNER_AD_UNIT, isTesting: true });
       }
       return true;
     }
     if (bridge?.showBanner) {
-      bridge.showBanner({ adId: ADMOB_CONFIG.BANNER_AD_UNIT, autoShow: true });
+      bridge.showBanner({ adId: ADMOB_CONFIG.BANNER_AD_UNIT, isTesting: true, autoShow: true });
       return true;
     }
   } catch {
@@ -85,18 +86,19 @@ export async function triggerNativeInterstitialAd(): Promise<boolean> {
       if (typeof bridge.interstitial.config === 'function') {
         bridge.interstitial.config({
           id: ADMOB_CONFIG.INTERSTITIAL_AD_UNIT,
-          isTesting: false,
+          isTesting: true,
           autoShow: true,
         });
         bridge.interstitial.prepare?.();
       } else if (typeof bridge.interstitial.show === 'function') {
-        await bridge.interstitial.show({ id: ADMOB_CONFIG.INTERSTITIAL_AD_UNIT });
+        await bridge.interstitial.show({ id: ADMOB_CONFIG.INTERSTITIAL_AD_UNIT, isTesting: true });
       }
       return true;
     }
     if (bridge?.prepareInterstitial) {
       await bridge.prepareInterstitial({
         adId: ADMOB_CONFIG.INTERSTITIAL_AD_UNIT,
+        isTesting: true,
         autoShow: true,
       });
       return true;
@@ -119,18 +121,19 @@ export async function triggerNativeRewardedAd(): Promise<boolean> {
       if (typeof bridge.rewardvideo.config === 'function') {
         bridge.rewardvideo.config({
           id: ADMOB_CONFIG.REWARDED_AD_UNIT,
-          isTesting: false,
+          isTesting: true,
           autoShow: true,
         });
         bridge.rewardvideo.prepare?.();
       } else if (typeof bridge.rewardvideo.show === 'function') {
-        await bridge.rewardvideo.show({ id: ADMOB_CONFIG.REWARDED_AD_UNIT });
+        await bridge.rewardvideo.show({ id: ADMOB_CONFIG.REWARDED_AD_UNIT, isTesting: true });
       }
       return true;
     }
     if (bridge?.prepareRewardVideoAd) {
       await bridge.prepareRewardVideoAd({
         adId: ADMOB_CONFIG.REWARDED_AD_UNIT,
+        isTesting: true,
         autoShow: true,
       });
       return true;
