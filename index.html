@@ -14,6 +14,14 @@
     <meta name="admob-banner-unit" content="ca-app-pub-4220750286370813/8896965666" />
     <meta name="admob-interstitial-unit" content="ca-app-pub-4220750286370813/4678344042" />
     <meta name="admob-rewarded-unit" content="ca-app-pub-4220750286370813/6957023022" />
+    <meta name="theme-color" content="#060b08" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Alphabet3D" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -21,6 +29,15 @@
   <body class="bg-[#060b08] text-[#fef9e7] antialiased select-none selection:bg-[#f5b041] selection:text-[#060b08]">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch((err) => {
+            console.warn('ServiceWorker registration failed:', err);
+          });
+        });
+      }
+    </script>
   </body>
 </html>
 

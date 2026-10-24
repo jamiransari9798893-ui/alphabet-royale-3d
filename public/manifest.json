@@ -1,0 +1,39 @@
+{
+  "id": "/",
+  "name": "Alphabet Royale 3D",
+  "short_name": "Alphabet3D",
+  "description": "Ultra-premium 3D Royal Casino 1v1 Alphabet Card Game with strategic deck arrangement, 30 luxury card skins, velvet tables, and realistic Web Audio sound effects.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#060b08",
+  "background_color": "#060b08",
+  "categories": ["games", "entertainment", "card"],
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
