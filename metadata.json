@@ -1,0 +1,6 @@
+{
+  "name": "Alphabet Royale 3D",
+  "description": "Ultra-premium 3D Royal Casino 1v1 Alphabet Card Game with strategic 60-second deck arrangement, 30 luxury card skins, velvet tables, and realistic Web Audio sound effects.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
